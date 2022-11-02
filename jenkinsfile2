@@ -1,0 +1,44 @@
+pipeline {
+    agent { label 'jdk11' }
+    stages {
+        stage ('Clone') {
+            steps {
+                git url: "https://github.com/Kalyanand-299/spring-petclinic.git" , branch : 'main'
+            }
+        }
+        stage ('Artifactory configuration') {
+            steps {
+                rtMavenDeployer (
+                    id: "MAVEN_DEPLOYER",
+                    serverId: "novone",
+                    releaseRepo: 'default-libs-release',
+                    snapshotRepo: 'default-libs-snapshot'
+                )
+            }
+        }
+        stage ('Exec Maven') {
+            steps {
+                rtMavenRun (
+                    tool:'MAVEN',
+                    pom: 'pom.xml',
+                    goals: 'clean install',
+                    deployerId: "MAVEN_DEPLOYER"
+                )
+            }
+        }
+        stage ('Publish build info') {
+            steps {
+                rtPublishBuildInfo (
+                    serverId: "novone"
+                )
+            }
+        }
+    
+    }
+        post  {
+            success {
+                junit '**/surefire-reports/*.xml'
+                archiveArtifacts '**/target/*.jar'
+            }
+        }
+}
